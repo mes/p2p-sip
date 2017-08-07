@@ -194,6 +194,26 @@ class Header(object):
         value = '"'.join([(x if i % 2 == 0 else re.sub(r',', r'%2C', x)) for i, x in enumerate(value.split('"'))])
         return (_canon(name),  map(lambda x: Header(re.sub(r'%2C', r',', x), name), value.split(',') if name.lower() not in _comma else [value]))
 
+    @staticmethod
+    def createHeadersFromString(headerString):
+        '''Parse headers from multi-line string
+        >>> print Header.createHeadersFromString('Event: presence\nContact: <sip:user@1.2.3.4:5060;line=vvl1wrhk>')
+        [Contact: <sip:user@1.2.3.4:5060;line=vvl1wrhk>, Event: presence]
+        '''
+        headers = {}
+        for h in str(headerString).split('\n'):
+          try:
+              name, values = Header.createHeaders(h)
+              if name not in headers: # doesn't already exist
+                  headers[name] = values
+              elif name not in Message._single: # valid multiple-instance header
+                  headers[name] += values
+          except:
+              if _debug: print 'error parsing', h
+              continue
+
+        # Return flat list
+        return sum(headers.values(), [])
 
 
 class Message(object):
@@ -1045,7 +1065,7 @@ class UserAgent(object):
         return Transaction.createServer(self.stack, self, request, self.stack.transport, self.stack.tag)
 
     # @implements RFC3261 P35L5-P41L18
-    def createRequest(self, method, content=None, contentType=None):
+    def createRequest(self, method, content=None, contentType=None, headers=[]):
         '''Create new UAC request.'''
         self.server = False
         if not self.remoteParty: raise ValueError, 'No remoteParty for UAC'
@@ -1074,9 +1094,8 @@ class UserAgent(object):
         # put Contact is every request. app may remove or override it.
         Contact = Header(str(self.localTarget), 'Contact')
         Contact.value.uri.secure = self.secure
-
-        headers = [To, From, CSeq, CallId, MaxForwards, Via, Contact]
-
+        headers += [To, From, CSeq, CallId, MaxForwards, Via, Contact]
+        
         if self.routeSet:
             for route in map(lambda x: Header(str(x), 'Route'), self.routeSet):
                 route.value.uri.secure = self.secure

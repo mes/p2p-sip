@@ -367,8 +367,8 @@ class User(object):
         else: return None
     
     #-------------------------- Session related methods -------------------
-    def connect(self, dest, mediasock=None, sdp=None, provisional=False):
-        '''Invite a remote destination to a session. This is a generator function, which 
+    def connect(self, dest, mediasock=None, sdp=None, provisional=False, headers=None):
+        '''Invite a remote destination to a session. This is a generator function, which
         returns a (session, None) for successful connection and (None, reason) for failure.
         Either mediasock or sdp must be present. If mediasock is present, then session is negotiated 
         for that mediasock socket, without SDP. Otherwise, the given sdp (rfc4566.SDP) is used 
@@ -382,8 +382,8 @@ class User(object):
                 raise StopIteration((None, 'invalid dest URI'))
             ua = self.createClient(dest)
             ua.queue = multitask.Queue() # to receive responses
-            m = ua.createRequest('INVITE')
-            
+            m = ua.createRequest('INVITE', None, None, headers)
+
             if mediasock is not None:
                 local = yield self._getLocalCandidates(mediasock) # populate the media candidates
                 for c in local: # add proprietary SIP header - Candidate
